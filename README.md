@@ -1,36 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Mentor Lounge
 
-## Getting Started
+Mentor Lounge is a multi-thread mentor workspace built with Next.js 16 (App Router) and Tailwind. It showcases Mistral’s public API by letting you juggle multiple personas, capture summaries, review analytics, and share read-only conversations without leaking API keys to the client.
 
-First, run the development server:
+### Feature tour
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Persona-aware threads**: Sidebar keeps separate sessions per mentor type (Product Mentor, Code Reviewer, Delivery PM). Threads can be pinned, archived, or deleted and persist locally via Zustand.
+- **Structured composer**: Quick action chips (bug triage, spec rewrite, retro) inject templates; the composer shows streaming state while messages flow through the Mentor API.
+- **Server-only AI calls**: `/api/chat` and `/api/summary` wrap the official `@mistralai/mistralai` SDK so the `MISTRAL_API_KEY` never leaves the server.
+- **Utility rail**: Persona detail, rolling summary (auto-updated after each exchange), lightweight analytics (turns, duration, user vs mentor counts), and a one-click share link.
+- **Share view**: `/share/[payload]` decodes read-only payloads to show the transcript + highlights without requiring auth or additional storage.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Requirements
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Node.js **20.9.0 or newer** (Next.js 16 enforces this). Recommended managers: `nvm-windows`, Volta, or the official Node installer.
+- npm 9+ (bundled with Node 20).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Setup & local development
 
-## Learn More
+1. **Install dependencies**
 
-To learn more about Next.js, take a look at the following resources:
+   ```bash
+   npm install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. **Configure environment variables**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```bash
+   cp .env.example .env.local
+   ```
 
-## Deploy on Vercel
+   Open `.env.local` and set:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```
+   MISTRAL_API_KEY=sk-your-real-key
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   `.gitignore` already excludes `.env*`, so the key stays out of source control.
+
+3. **Run the app**
+
+   ```bash
+   npm run dev
+   ```
+
+   The dev server defaults to port 3000 (use `PORT=4100 npm run dev` to override).
+
+4. **Lint (optional but recommended)**
+
+   ```bash
+   npm run lint
+   ```
+
+### Manual test script
+
+Use these steps to validate the whole experience after starting `npm run dev`:
+
+1. **Create a Product Mentor thread**
+   - Select the “Product Mentor” pill.
+   - Click “Start new thread”.
+   - Paste:
+     ```
+     Context: We're launching Mentor Lounge. Goals: improve onboarding, reduce repetitive summaries,
+     and add a lightweight sharing workflow. Suggest a two-sprint plan.
+     ```
+   - Click Send and confirm a mentor response arrives.
+
+2. **Verify summary + analytics**
+   - Look at the right rail: “Session summary” should show fresh bullets.
+   - “Session analytics” should show Turns ≥ 2, Duration ≥ 1m after a follow-up.
+
+3. **Use quick actions**
+   - Click “Retro outline” quick action, replace `<insert context>` with a few notes, and send.
+   - Ensure the mentor response adjusts to the template.
+
+4. **Share link**
+   - Click “Share thread → Copy share link”.
+   - Open the copied URL in an incognito window and confirm the transcript + bullets render.
+
+5. **Thread controls**
+   - In the sidebar, pin the thread, archive it, then delete it to test all actions.
+   - Start a Code Reviewer thread to ensure persona-specific prompts still work.
+
+6. **API sanity checks (optional)**
+   - `curl http://localhost:3000/api/chat -X POST -H "Content-Type: application/json" -d '{"messages":[{"role":"user","content":"hi"}]}'`
+   - `curl http://localhost:3000/api/summary -X POST -H "Content-Type: application/json" -d '{"transcript":"USER: hi\\n\\nASSISTANT: hello"}'`
+   - Both should return JSON payloads without errors.
+
+### Key directories
+
+- `src/components/chat` – Thread sidebar, composer, analytics, share panel, share card, etc.
+- `src/store/chat-store.ts` – Zustand store (persisted threads, statuses, summaries).
+- `src/lib/mistral.ts` – Thin wrapper around `@mistralai/mistralai`.
+- `src/app/api/chat/route.ts` – Server-only proxy for chat completions.
+- `src/app/api/summary/route.ts` – Summaries powered by the same client.
+- `src/app/share/[payload]/page.tsx` – Public read-only view of shared payloads.
+
+### Roadmap
+
+- [x] UI architecture + state model
+- [x] Wire mentor responses + summaries via API routes
+- [x] Lightweight analytics + shareable read-only links
+- [ ] Persist histories in a shared database
+- [ ] Voice extensions and real-time co-tap
